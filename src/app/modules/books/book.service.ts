@@ -4,28 +4,39 @@ import db from "../../../db";
 import { paginationHelper } from "../../../helpers/paginationHelper";
 import { IPaginationOptions } from "../../../interfaces/pagination";
 
+
+const getSingleBook = async (id: string): Promise<IBook | undefined> => {
+  const result = await db<IBook>("book")
+    .where("book.id", id)
+    .select("book.*")
+    .leftJoin("author", "book.author_id", "author.id")
+    .select(db.raw("json_build_object('id', author.id, 'name', author.name, 'bio', author.bio, 'birthdate', author.birthdate) as author"))
+    .first();
+  return result;
+};
+
 const getAllBooks = async (
   filters: IBookFilters,
   paginationOptions: IPaginationOptions,
 ): Promise<IGenericResponse<IBook[]>> => {
-
-  // eslint-disable-next-line no-unused-vars
   const { searchTerm, ...filtersData } = filters;
-  const {author} = filtersData as any;
+  const { author } = filtersData as any;
   const { page, limit, skip } = paginationHelper(paginationOptions);
   
   const result = await db<IBook>("book")
-  .modify((query) => {
-    if (searchTerm) {
-      query.where("title", "ilike", `%${searchTerm}%`);
-    }
-    if (author) {
-      query.where("author_id", author);
-    }
-  })
-  .select("*")
-  .limit(limit)
-  .offset(skip);
+    .modify((query) => {
+      if (searchTerm) {
+        query.where("title", "ilike", `%${searchTerm}%`);
+      }
+      if (author) {
+        query.where("author_id", author);
+      }
+    })
+    .select("book.*")
+    .leftJoin("author", "book.author_id", "author.id")
+    .select(db.raw("json_build_object('id', author.id, 'name', author.name, 'bio', author.bio, 'birthdate', author.birthdate) as author"))
+    .limit(limit)
+    .offset(skip);
 
   return {
     meta: {
@@ -35,13 +46,6 @@ const getAllBooks = async (
     },
     data: result,
   };
-};
-
-const getSingleBook = async (id: string): Promise<IBook | undefined> => {
-  const result = await db<IBook>("book")
-    .where({ id })
-    .first();
-  return result;
 };
 
 const createBook = async (payload: IBook): Promise<IBook> => {

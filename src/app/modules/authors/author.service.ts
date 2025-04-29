@@ -9,17 +9,21 @@ const getAllAuthors = async (
     paginationOptions: IPaginationOptions,
  ): Promise<IGenericResponse<IAuthor[]>> => {
     
-  // eslint-disable-next-line no-unused-vars
-  const { searchTerm, ...filtersData } = filters;
-
+  const { searchTerm } = filters;
   const { page, limit, skip } = paginationHelper(paginationOptions);
   
   const result = await db<IAuthor>("author")
-  .where("name", "ilike", `%${searchTerm || ""}%`) 
-  .select("*")
-  .limit(limit)
-  .offset(skip);
-
+    .modify((query) => {
+      if (searchTerm) {
+        query.where("name", "ilike", `%${searchTerm || ""}%`);
+      }
+    })
+    .select("author.*")
+    .leftJoin("book", "author.id", "book.author_id")
+    .groupBy("author.id")
+    .select(db.raw("json_agg(book.*) as books"))
+    .limit(limit)
+    .offset(skip);
 
   return {
     meta: {
@@ -33,7 +37,11 @@ const getAllAuthors = async (
 
 const getSingleAuthor = async (id: string): Promise<IAuthor | undefined> => {
   const result = await db<IAuthor>("author")
-    .where({ id })
+    .where("author.id", id)
+    .select("author.*")
+    .leftJoin("book", "author.id", "book.author_id")
+    .select(db.raw("json_agg(book.*) as books"))
+    .groupBy("author.id")
     .first();
   return result;
 };
