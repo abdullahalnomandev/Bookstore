@@ -4,9 +4,7 @@ import { validationResult, ValidationChain } from "express-validator";
 const expressValidationRequest = (validationSchema: ValidationChain[]) =>
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      // Run all validations
       await Promise.all(validationSchema.map(validation => validation.run(req)));
-      
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         res.status(400).json({
